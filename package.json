@@ -8,7 +8,12 @@
     "lint": "nx run-many -t lint",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test --coverage",
-    "ci:check": "npm run format:check && npm run lint && npm run build && npm run test"
+    "ci:check": "npm run format:check && npm run lint && npm run build && npm run test",
+    "typeorm": "ts-node --project tsconfig.base.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:generate": "npm run typeorm -- migration:generate -d apps/api/src/typeorm.config.ts",
+    "migration:run": "npm run typeorm -- migration:run -d apps/api/src/typeorm.config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d apps/api/src/typeorm.config.ts"
   },
   "private": true,
   "devDependencies": {
@@ -63,6 +68,8 @@
     "jsdom": "^27.1.0",
     "nx": "22.7.5",
     "prettier": "~3.6.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
