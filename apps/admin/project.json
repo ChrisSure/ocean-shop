@@ -68,7 +68,13 @@
     "test": {
       "executor": "@angular/build:unit-test",
       "options": {
-        "watch": false
+        "watch": false,
+        "coverageThresholds": {
+          "statements": 90,
+          "branches": 90,
+          "functions": 90,
+          "lines": 90
+        }
       }
     },
     "serve-static": {

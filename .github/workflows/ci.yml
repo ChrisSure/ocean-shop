@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  main:
+    name: Nx Cloud - Main Job
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Check format
+        run: npx nx format:check
+
+      - name: Lint
+        run: npx nx run-many -t lint
+
+      - name: Build
+        run: npx nx run-many -t build
+
+      - name: Test
+        run: npx nx run-many -t test --coverage
