@@ -13,7 +13,8 @@
     "migration:create": "npm run typeorm -- migration:create",
     "migration:generate": "npm run typeorm -- migration:generate -d apps/api/src/typeorm.config.ts",
     "migration:run": "npm run typeorm -- migration:run -d apps/api/src/typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d apps/api/src/typeorm.config.ts"
+    "migration:revert": "npm run typeorm -- migration:revert -d apps/api/src/typeorm.config.ts",
+    "seed": "ts-node --project apps/api/tsconfig.app.json -r tsconfig-paths/register apps/api/src/app/core/db/seeders/seed.ts"
   },
   "private": true,
   "devDependencies": {
