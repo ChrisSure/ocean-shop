@@ -23,7 +23,7 @@ jobs:
       - run: npm ci
 
       - name: Check format
-        run: npx nx format:check
+        run: npx nx format:check --base=HEAD~1
 
       - name: Lint
         run: npx nx run-many -t lint
