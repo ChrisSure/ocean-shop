@@ -7,16 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-
-export enum OtpChannel {
-  EMAIL = 'email',
-  SMS = 'sms',
-}
-
-export enum OtpPurpose {
-  LOGIN = 'login',
-  REGISTER = 'register',
-}
+import { OtpChannel, OtpPurpose } from './enums/auth-otp.enum';
 
 @Entity('auth_otps')
 export class AuthOtp {
