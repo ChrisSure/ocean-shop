@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Res, Req, Headers, Ip } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { AuthService } from './auth.service';
-import { RequestOtpDto } from './dto/request-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { AuthService } from '../services/auth.service';
+import { RequestOtpDto } from '../dto/request-otp.dto';
+import { VerifyOtpDto } from '../dto/verify-otp.dto';
 
 /* v8 ignore start */
 @Controller('user/auth')

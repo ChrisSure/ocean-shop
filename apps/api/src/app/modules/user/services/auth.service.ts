@@ -8,12 +8,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { User } from './entities/user.entity';
-import { AuthOtp } from './entities/auth-otp.entity';
-import { OtpChannel, OtpPurpose } from './entities/enums/auth-otp.enum';
-import { UserSession } from './entities/user-session.entity';
-import { RequestOtpDto } from './dto/request-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { User } from '../entities/user.entity';
+import { AuthOtp } from '../entities/auth-otp.entity';
+import { OtpChannel, OtpPurpose } from '../entities/enums/auth-otp.enum';
+import { UserSession } from '../entities/user-session.entity';
+import { RequestOtpDto } from '../dto/request-otp.dto';
+import { VerifyOtpDto } from '../dto/verify-otp.dto';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
     @InjectRepository(UserSession)
     private readonly userSessionRepository: Repository<UserSession>,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
@@ -74,7 +76,6 @@ export class AuthService {
     await this.authOtpRepository.save(latestOtp);
     await this.verifyUserIfRegistered(latestOtp, user, email, phone);
 
-    // Generate Tokens
     const payload = {
       sub: user.id,
       email: user.email,
@@ -132,7 +133,7 @@ export class AuthService {
     phone: string | undefined,
   ) {
     const purpose = OtpPurpose.LOGIN;
-    await this.createAndLogOtp(user.id, email, phone, purpose);
+    await this.createAndSendOtp(user.id, email, phone, purpose);
   }
 
   private async handleNewUserOtp(
@@ -145,10 +146,10 @@ export class AuthService {
     });
     newUser = await this.userRepository.save(newUser);
     const purpose = OtpPurpose.REGISTER;
-    await this.createAndLogOtp(newUser.id, email, phone, purpose);
+    await this.createAndSendOtp(newUser.id, email, phone, purpose);
   }
 
-  private async createAndLogOtp(
+  private async createAndSendOtp(
     userId: string,
     email: string | undefined,
     phone: string | undefined,
@@ -156,7 +157,14 @@ export class AuthService {
   ) {
     const { code, codeHash } = await this.generateOtpCodeAndHash();
     await this.saveOtp(userId, codeHash, email, purpose);
-    this.logger.log(`Generated OTP code for ${email || phone}: ${code}`);
+
+    if (email) {
+      await this.emailService.sendOtpEmail(email, code);
+      return;
+    }
+
+    // No SMS provider yet: keep logging the code for the phone channel.
+    this.logger.log(`Generated OTP code for ${phone}: ${code}`);
   }
 
   private isUserVerified(

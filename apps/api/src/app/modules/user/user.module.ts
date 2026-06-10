@@ -8,8 +8,11 @@ import { Permission } from './entities/permission.entity';
 import { UserSession } from './entities/user-session.entity';
 import { OauthAccount } from './entities/oauth-account.entity';
 import { AuthOtp } from './entities/auth-otp.entity';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuthController } from './controllers/auth.controller';
+import { AuthService } from './services/auth.service';
+import { EmailService } from './services/email.service';
+import { EmailProcessor } from './processors/email.processor';
+import { isEmailQueueEnabled } from '../queue/helpers/queue.helpers';
 
 @Module({
   imports: [
@@ -30,7 +33,12 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    EmailService,
+    // The processor only runs when the BullMQ queue is enabled.
+    ...(isEmailQueueEnabled() ? [EmailProcessor] : []),
+  ],
   exports: [TypeOrmModule, AuthService],
 })
 export class UserModule {}

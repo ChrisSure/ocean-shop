@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { RequestOtpDto } from './dto/request-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { AuthService } from '../services/auth.service';
+import { RequestOtpDto } from '../dto/request-otp.dto';
+import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { Response } from 'express';
 
 describe('AuthController', () => {

@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MailModule } from './modules/mail/mail.module';
+import { QueueModule } from './modules/queue/queue.module';
 import { UserModule } from './modules/user/user.module';
 
 @Module({
@@ -20,6 +22,8 @@ import { UserModule } from './modules/user/user.module';
       }),
       inject: [ConfigService],
     }),
+    MailModule,
+    QueueModule.register(),
     UserModule,
   ],
   controllers: [AppController],

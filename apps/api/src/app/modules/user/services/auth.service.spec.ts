@@ -6,10 +6,11 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from './auth.service';
-import { User } from './entities/user.entity';
-import { AuthOtp } from './entities/auth-otp.entity';
-import { UserSession } from './entities/user-session.entity';
-import { OtpChannel, OtpPurpose } from './entities/enums/auth-otp.enum';
+import { EmailService } from './email.service';
+import { User } from '../entities/user.entity';
+import { AuthOtp } from '../entities/auth-otp.entity';
+import { UserSession } from '../entities/user-session.entity';
+import { OtpChannel, OtpPurpose } from '../entities/enums/auth-otp.enum';
 
 vi.mock('bcryptjs', () => ({
   genSalt: vi.fn().mockResolvedValue('mock-salt'),
@@ -23,6 +24,7 @@ describe('AuthService', () => {
   let authOtpRepository: any;
   let userSessionRepository: any;
   let jwtService: any;
+  let emailService: any;
   let queryBuilder: any;
 
   beforeEach(async () => {
@@ -56,6 +58,10 @@ describe('AuthService', () => {
       sign: vi.fn().mockReturnValue('mocked-token'),
     };
 
+    emailService = {
+      sendOtpEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -66,6 +72,7 @@ describe('AuthService', () => {
           useValue: userSessionRepository,
         },
         { provide: JwtService, useValue: jwtService },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
 
@@ -125,6 +132,10 @@ describe('AuthService', () => {
         }),
       );
       expect(authOtpRepository.save).toHaveBeenCalled();
+      expect(emailService.sendOtpEmail).toHaveBeenCalledWith(
+        'test@example.com',
+        '2110',
+      );
       expect(result).toEqual({ message: 'OTP sent successfully' });
     });
 
@@ -193,6 +204,7 @@ describe('AuthService', () => {
         }),
       );
       expect(authOtpRepository.save).toHaveBeenCalled();
+      expect(emailService.sendOtpEmail).not.toHaveBeenCalled();
       expect(result).toEqual({ message: 'OTP sent successfully' });
     });
 
@@ -237,6 +249,10 @@ describe('AuthService', () => {
         }),
       );
       expect(authOtpRepository.save).toHaveBeenCalled();
+      expect(emailService.sendOtpEmail).toHaveBeenCalledWith(
+        'test@example.com',
+        '2110',
+      );
       expect(result).toEqual({ message: 'OTP sent successfully' });
     });
     it('should handle undefined OTP_EXPIRE', async () => {
