@@ -1,8 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 
-/* v8 ignore next 3 */
+/* v8 ignore start */
 @Controller()
+/* v8 ignore stop */
 export class AppController {
   constructor(private readonly appService: AppService) {}
 

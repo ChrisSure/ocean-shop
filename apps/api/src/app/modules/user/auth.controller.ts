@@ -4,7 +4,9 @@ import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
+/* v8 ignore start */
 @Controller('user/auth')
+/* v8 ignore stop */
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -20,14 +22,17 @@ export class AuthController {
     @Ip() ipAddress: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.verifyOtp(verifyOtpDto, userAgent, ipAddress);
+    const result = await this.authService.verifyOtp(
+      verifyOtpDto,
+      userAgent,
+      ipAddress,
+    );
 
-    // Set refresh token in HttpOnly cookie
     response.cookie('refresh_token', result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: parseInt(process.env.REFRESH_EXPIRE_TIME, 10),
     });
 
     return result;

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -25,7 +30,8 @@ export class AuthService {
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
-    const { email, phone } = dto;
+    const email = dto.email;
+    const phone = dto.phone;
     if (!email && !phone) {
       throw new BadRequestException('Email or phone must be provided');
     }
@@ -33,7 +39,6 @@ export class AuthService {
     const user = await this.userRepository.findOne({
       where: email ? { email } : { mobileNumber: phone },
     });
-
 
     if (user) {
       await this.checkActiveOtpRequest(user.id);
@@ -46,28 +51,143 @@ export class AuthService {
       await this.handleNewUserOtp(email, phone);
     }
 
-
     return { message: 'OTP sent successfully' };
   }
 
   async verifyOtp(dto: VerifyOtpDto, userAgent?: string, ipAddress?: string) {
-    const {email, phone, code} = dto;
+    const email = dto.email;
+    const phone = dto.phone;
+    const code = dto.code;
 
     const user = await this.userRepository.findOne({
-      where: email ? {email} : {mobileNumber: phone},
+      where: email ? { email } : { mobileNumber: phone },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Find latest active OTP
-    // TypeORM might have issues with IsNull() if we don't import it, so using IsNull() via import or just where: { usedAt: IsNull() }
-    // Wait, IsNull is not imported. I'll just use a raw query or simply skip the IsNull check and filter below,
-    // or better, I can import IsNull from typeorm.
-    // I'll adjust the query for now.
-    const otps = await this.authOtpRepository.createQueryBuilder('otp')
-      .where('otp.user_id = :userId', {userId: user.id})
+    const latestOtp = await this.findAndValidateLatestOtp(user.id);
+    await this.validateOtpCode(code, latestOtp);
+
+    latestOtp.usedAt = new Date();
+    await this.authOtpRepository.save(latestOtp);
+    await this.verifyUserIfRegistered(latestOtp, user, email, phone);
+
+    // Generate Tokens
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      mobileNumber: user.mobileNumber,
+    };
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    await this.saveUserSession(user.id, refreshToken, userAgent, ipAddress);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        mobileNumber: user.mobileNumber,
+      },
+    };
+  }
+
+  private async generateOtpCodeAndHash(): Promise<{
+    code: string;
+    codeHash: string;
+  }> {
+    // Generate 4 digit code
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    const salt = await bcrypt.genSalt(10);
+    const codeHash = await bcrypt.hash(code, salt);
+    return { code, codeHash };
+  }
+
+  private async saveOtp(
+    userId: string,
+    codeHash: string,
+    email: string | undefined,
+    purpose: OtpPurpose,
+  ) {
+    const expireTime = process.env.OTP_EXPIRE
+      ? parseInt(process.env.OTP_EXPIRE, 10)
+      : 5 * 60 * 1000;
+    const otp = this.authOtpRepository.create({
+      userId,
+      codeHash,
+      channel: email ? OtpChannel.EMAIL : OtpChannel.SMS,
+      purpose,
+      expiresAt: new Date(Date.now() + expireTime),
+    });
+    await this.authOtpRepository.save(otp);
+  }
+
+  private async handleExistingUserOtp(
+    user: User,
+    email: string | undefined,
+    phone: string | undefined,
+  ) {
+    const purpose = OtpPurpose.LOGIN;
+    await this.createAndLogOtp(user.id, email, phone, purpose);
+  }
+
+  private async handleNewUserOtp(
+    email: string | undefined,
+    phone: string | undefined,
+  ) {
+    let newUser = this.userRepository.create({
+      email: email || null,
+      mobileNumber: phone || null,
+    });
+    newUser = await this.userRepository.save(newUser);
+    const purpose = OtpPurpose.REGISTER;
+    await this.createAndLogOtp(newUser.id, email, phone, purpose);
+  }
+
+  private async createAndLogOtp(
+    userId: string,
+    email: string | undefined,
+    phone: string | undefined,
+    purpose: OtpPurpose,
+  ) {
+    const { code, codeHash } = await this.generateOtpCodeAndHash();
+    await this.saveOtp(userId, codeHash, email, purpose);
+    this.logger.log(`Generated OTP code for ${email || phone}: ${code}`);
+  }
+
+  private isUserVerified(
+    user: User,
+    email: string | undefined,
+    phone: string | undefined,
+  ): boolean {
+    if (email) return user.isEmailVerified;
+    if (phone) return user.isMobileVerified;
+    return false;
+  }
+
+  private async checkActiveOtpRequest(userId: string) {
+    const activeOtp = await this.authOtpRepository
+      .createQueryBuilder('otp')
+      .where('otp.user_id = :userId', { userId })
+      .andWhere('otp.used_at IS NULL')
+      .andWhere('otp.expires_at > :now', { now: new Date() })
+      .getOne();
+
+    if (activeOtp) {
+      throw new BadRequestException(
+        'You have already sent a request. Please wait until it expires.',
+      );
+    }
+  }
+
+  private async findAndValidateLatestOtp(userId: string): Promise<AuthOtp> {
+    const otps = await this.authOtpRepository
+      .createQueryBuilder('otp')
+      .where('otp.user_id = :userId', { userId })
       .andWhere('otp.used_at IS NULL')
       .orderBy('otp.created_at', 'DESC')
       .take(1)
@@ -83,109 +203,50 @@ export class AuthService {
       throw new BadRequestException('OTP has expired');
     }
 
+    return latestOtp;
+  }
+
+  private async validateOtpCode(code: string, latestOtp: AuthOtp) {
     const isValid = await bcrypt.compare(code, latestOtp.codeHash);
     if (!isValid) {
       latestOtp.attempts += 1;
       await this.authOtpRepository.save(latestOtp);
       throw new BadRequestException('Invalid OTP code');
     }
+  }
 
-    // Mark as used
-    latestOtp.usedAt = new Date();
-    await this.authOtpRepository.save(latestOtp);
-
-    // If it was register, verify email/phone
+  private async verifyUserIfRegistered(
+    latestOtp: AuthOtp,
+    user: User,
+    email: string | undefined,
+    phone: string | undefined,
+  ) {
     if (latestOtp.purpose === OtpPurpose.REGISTER) {
       if (email) user.isEmailVerified = true;
       if (phone) user.isMobileVerified = true;
       await this.userRepository.save(user);
     }
+  }
 
-    // Generate Tokens
-    const payload = {sub: user.id, email: user.email, mobileNumber: user.mobileNumber};
-    const accessToken = this.jwtService.sign(payload, {expiresIn: '15m'});
-    const refreshToken = this.jwtService.sign(payload, {expiresIn: '7d'});
-
-    // Save refresh token session
+  private async saveUserSession(
+    userId: string,
+    refreshToken: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     const salt = await bcrypt.genSalt(10);
     const refreshTokenHash = await bcrypt.hash(refreshToken, salt);
 
+    const refreshExpireTime = process.env.REFRESH_EXPIRE_TIME
+      ? parseInt(process.env.REFRESH_EXPIRE_TIME, 10)
+      : 7 * 24 * 60 * 60 * 1000;
     const session = this.userSessionRepository.create({
-      userId: user.id,
+      userId,
       refreshTokenHash,
       userAgent: userAgent || null,
       ipAddress: ipAddress || null,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + refreshExpireTime),
     });
     await this.userSessionRepository.save(session);
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        mobileNumber: user.mobileNumber,
-      },
-    };
-  }
-
-  private async generateOtpCodeAndHash(): Promise<{ code: string; codeHash: string }> {
-    // Generate 4 digit code
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    const salt = await bcrypt.genSalt(10);
-    const codeHash = await bcrypt.hash(code, salt);
-    return { code, codeHash };
-  }
-
-  private async saveOtp(userId: string, codeHash: string, email: string | undefined, purpose: OtpPurpose) {
-    const expireTime = process.env.OTP_EXPIRE ? parseInt(process.env.OTP_EXPIRE, 10) : 5 * 60 * 1000;
-    const otp = this.authOtpRepository.create({
-      userId,
-      codeHash,
-      channel: email ? OtpChannel.EMAIL : OtpChannel.SMS,
-      purpose,
-      expiresAt: new Date(Date.now() + expireTime),
-    });
-    await this.authOtpRepository.save(otp);
-  }
-
-  private async handleExistingUserOtp(user: User, email: string | undefined, phone: string | undefined) {
-    const purpose = OtpPurpose.LOGIN;
-    await this.createAndLogOtp(user.id, email, phone, purpose);
-  }
-
-  private async handleNewUserOtp(email: string | undefined, phone: string | undefined) {
-    let newUser = this.userRepository.create({
-      email: email || null,
-      mobileNumber: phone || null,
-    });
-    newUser = await this.userRepository.save(newUser);
-    const purpose = OtpPurpose.REGISTER;
-    await this.createAndLogOtp(newUser.id, email, phone, purpose);
-  }
-
-  private async createAndLogOtp(userId: string, email: string | undefined, phone: string | undefined, purpose: OtpPurpose) {
-    const { code, codeHash } = await this.generateOtpCodeAndHash();
-    await this.saveOtp(userId, codeHash, email, purpose);
-    this.logger.log(`Generated OTP code for ${email || phone}: ${code}`);
-  }
-
-  private isUserVerified(user: User, email: string | undefined, phone: string | undefined): boolean {
-    if (email) return user.isEmailVerified;
-    if (phone) return user.isMobileVerified;
-    return false;
-  }
-
-  private async checkActiveOtpRequest(userId: string) {
-    const activeOtp = await this.authOtpRepository.createQueryBuilder('otp')
-      .where('otp.user_id = :userId', { userId })
-      .andWhere('otp.used_at IS NULL')
-      .andWhere('otp.expires_at > :now', { now: new Date() })
-      .getOne();
-
-    if (activeOtp) {
-      throw new BadRequestException('You have already sent a request. Please wait until it expires.');
-    }
   }
 }
