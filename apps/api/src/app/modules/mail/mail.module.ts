@@ -1,12 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { join } from 'path';
-import {
-  DEFAULT_SMTP_PORT,
-  SMTP_SECURE_PORT,
-} from './constants/mail.constants';
+import { DEFAULT_SMTP_PORT } from './constants/mail.constants';
 
 @Global()
 @Module({
@@ -22,7 +19,7 @@ import {
           transport: {
             host: configService.get<string>('SMTP_HOST'),
             port,
-            secure: port === SMTP_SECURE_PORT,
+            secure: false,
             auth: {
               user: configService.get<string>('SMTP_USER'),
               pass: configService.get<string>('SMTP_PASSWORD'),
@@ -32,8 +29,6 @@ import {
             from: configService.get<string>('MAIL_FROM'),
           },
           template: {
-            // Webpack copies `src/assets` next to the bundled `main.js`,
-            // so the template dir resolves correctly in both dev and prod.
             dir: join(__dirname, 'assets', 'templates', 'emails'),
             adapter: new HandlebarsAdapter(),
             options: {

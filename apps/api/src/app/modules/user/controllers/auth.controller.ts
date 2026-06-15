@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Res, Req, Headers, Ip } from '@nestjs/common';
-import { Response, Request } from 'express';
+import { Controller, Post, Body, Res, Headers, Ip } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { RequestOtpDto } from '../dto/request-otp.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';

@@ -24,7 +24,7 @@ export default defineConfig(() => ({
         'src/**/*.enum.ts',
         'src/typeorm.config.ts',
         'src/app/core/db/**',
-        'src/migrations/**',
+        'src/app/core/modules/**',
         'webpack.config.js',
       ],
       thresholds: {

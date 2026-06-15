@@ -101,7 +101,6 @@ export class AuthService {
     code: string;
     codeHash: string;
   }> {
-    // Generate 4 digit code
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     const salt = await bcrypt.genSalt(10);
     const codeHash = await bcrypt.hash(code, salt);

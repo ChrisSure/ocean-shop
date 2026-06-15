@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
-import { DEFAULT_REDIS_PORT, EMAIL_QUEUE } from './constants/queue.constants';
+import { EMAIL_QUEUE } from './constants/queue.constants';
 import { isEmailQueueEnabled } from './helpers/queue.helpers';
 
 @Module({})
@@ -20,16 +20,20 @@ export class QueueModule {
       global: true,
       imports: [
         BullModule.forRootAsync({
-          useFactory: (configService: ConfigService) => ({
-            connection: {
-              host: configService.get<string>('REDIS_HOST') ?? 'localhost',
-              port: parseInt(
-                configService.get<string>('REDIS_PORT') ??
-                  `${DEFAULT_REDIS_PORT}`,
-                10,
-              ),
-            },
-          }),
+          useFactory: (configService: ConfigService) => {
+            const redisUrl = new URL(
+              configService.getOrThrow<string>('REDIS_URL'),
+            );
+            return {
+              connection: {
+                host: redisUrl.hostname,
+                port: redisUrl.port ? parseInt(redisUrl.port, 10) : 6379,
+                username: redisUrl.username || undefined,
+                password: redisUrl.password || undefined,
+                tls: redisUrl.protocol === 'rediss:' ? {} : undefined,
+              },
+            };
+          },
           inject: [ConfigService],
         }),
         BullModule.registerQueue({ name: EMAIL_QUEUE }),

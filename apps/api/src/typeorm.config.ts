@@ -9,6 +9,6 @@ export default new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [join(process.cwd(), 'apps/api/src/**/*.entity.{ts,js}')],
-  migrations: [join(process.cwd(), 'apps/api/src/migrations/*.{ts,js}')],
+  migrations: [join(process.cwd(), 'apps/api/src/app/core/modules/*.{ts,js}')],
   synchronize: false,
 });
