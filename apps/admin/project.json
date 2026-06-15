@@ -20,7 +20,7 @@
             "input": "apps/admin/public"
           }
         ],
-        "styles": ["apps/admin/src/styles.scss"]
+        "styles": ["apps/admin/src/tailwind.css", "apps/admin/src/styles.scss"]
       },
       "configurations": {
         "production": {

@@ -1,0 +1,5 @@
+@reference "#admin-tailwind";
+
+:host {
+  @apply block bg-surface text-on-surface;
+}

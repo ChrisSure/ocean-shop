@@ -1,0 +1,5 @@
+@reference "#admin-tailwind";
+
+:host {
+  @apply block bg-background text-on-background;
+}

@@ -18,6 +18,9 @@
     "seed": "ts-node --project apps/api/tsconfig.app.json -r tsconfig-paths/register apps/api/src/app/core/db/seeders/seed.ts"
   },
   "private": true,
+  "imports": {
+    "#admin-tailwind": "./apps/admin/src/tailwind.css"
+  },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "~2.1.2",
     "@analogjs/vitest-angular": "~2.1.2",
@@ -52,6 +55,7 @@
     "@swc/cli": "~0.8.0",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
+    "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -72,7 +76,9 @@
     "eslint-plugin-playwright": "^1.6.2",
     "jsdom": "^27.1.0",
     "nx": "22.7.5",
+    "postcss": "^8.5.15",
     "prettier": "~3.6.2",
+    "tailwindcss": "^4.3.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tslib": "^2.3.0",
