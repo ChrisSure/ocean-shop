@@ -47,3 +47,9 @@ __screenshots__/
 out
 
 vitest.config.*.timestamp*
+
+# Cursor
+.cursor
+
+# Environment
+.env
